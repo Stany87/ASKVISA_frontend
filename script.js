@@ -121,8 +121,13 @@ document.addEventListener('DOMContentLoaded', () => {
       docs:['Valid Passport (6+ months)','Passport-size Photo','Cover Letter','Flight Itinerary','Hotel Booking','Bank Statement (6 months)','ITR (2 years)'] }
   };
 
+  // ── Track active country for redirect ──
+  let currentCountryName = '';
+  const processBtn = document.querySelector('.cm-btn');
+
   window.openModal = key => {
     const d = data[key]; if (!d) return;
+    currentCountryName = d.name;
     document.getElementById('mImg').src = d.img;
     document.getElementById('mFlag').textContent = d.flag;
     document.getElementById('mName').textContent = d.name;
@@ -133,9 +138,38 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('mEnt').textContent = d.entries;
     document.getElementById('mStay').textContent = d.stay;
     document.getElementById('mDocs').innerHTML = d.docs.map(x => `<li><i class="fas fa-circle-check"></i>${x}</li>`).join('');
+    // Reset button state
+    if (processBtn) {
+      processBtn.classList.remove('is-loading');
+      processBtn.disabled = false;
+      processBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Start Processing';
+    }
     bg.classList.add('open'); lenis.stop();
   };
-  window.closeModal = () => { bg.classList.remove('open'); lenis.start(); };
+
+  // ── Dynamic redirect to AskVisa portal ──
+  window.startProcessing = () => {
+    if (!currentCountryName || !processBtn) return;
+    // Premium loading state
+    processBtn.classList.add('is-loading');
+    processBtn.disabled = true;
+    processBtn.innerHTML = '<span class="btn-spinner"></span> Redirecting to AskVisa...';
+    // Build redirect URL dynamically from active country
+    const encodedCountry = encodeURIComponent(currentCountryName);
+    const redirectUrl = `https://askvisa.in/?country=${encodedCountry}&source=b2b`;
+    // Brief delay for visual feedback before redirect
+    setTimeout(() => { window.location.href = redirectUrl; }, 1000);
+  };
+
+  window.closeModal = () => {
+    bg.classList.remove('open'); lenis.start();
+    // Reset button if modal is closed during loading
+    if (processBtn) {
+      processBtn.classList.remove('is-loading');
+      processBtn.disabled = false;
+      processBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Start Processing';
+    }
+  };
   bg?.addEventListener('click', e => { if (e.target === bg || e.target.closest('.cm-close')) closeModal(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
