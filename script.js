@@ -1,15 +1,34 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-  // ── Lenis smooth scroll ──
-  const lenis = new Lenis({ duration: 1.3, easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)), smoothWheel: true, wheelMultiplier: 0.85 });
-  function raf(time) { lenis.raf(time); requestAnimationFrame(raf); }
-  requestAnimationFrame(raf);
-  lenis.on('scroll', ScrollTrigger.update);
-  gsap.ticker.add(time => lenis.raf(time * 1000));
-  gsap.ticker.lagSmoothing(0);
+  // ── Detect touch device ──
+  const isMobile = window.matchMedia('(max-width:768px)').matches;
+  const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+  // ── Lenis smooth scroll (desktop only — native touch scroll is better on mobile) ──
+  let lenis = null;
+  if (!isTouch) {
+    lenis = new Lenis({ duration: 1.3, easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)), smoothWheel: true, wheelMultiplier: 0.85 });
+    function raf(time) { lenis.raf(time); requestAnimationFrame(raf); }
+    requestAnimationFrame(raf);
+    lenis.on('scroll', ScrollTrigger.update);
+    gsap.ticker.add(time => lenis.raf(time * 1000));
+    gsap.ticker.lagSmoothing(0);
+  }
 
   // ── Navbar ──
   window.addEventListener('scroll', () => document.querySelector('.navbar').classList.toggle('scrolled', window.scrollY > 60), { passive: true });
+
+  // ── Hamburger Mobile Menu ──
+  const hamburger = document.getElementById('hamburgerBtn');
+  const mobileMenu = document.getElementById('mobileMenu');
+  const mobileClose = document.getElementById('mobileMenuClose');
+  if (hamburger && mobileMenu) {
+    hamburger.addEventListener('click', () => mobileMenu.classList.add('open'));
+    mobileClose?.addEventListener('click', () => mobileMenu.classList.remove('open'));
+    mobileMenu.querySelectorAll('a').forEach(a => {
+      a.addEventListener('click', () => mobileMenu.classList.remove('open'));
+    });
+  }
 
   // ── Hero parallax ──
   gsap.to('.hero-bg', { yPercent: 25, ease: 'none', scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true } });
@@ -38,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
       scrollTrigger: {
         trigger: panel,
         start: 'top top',
-        end: `+=${imgCount * 100}%`,
+        end: `+=${imgCount * (isMobile ? 70 : 100)}%`,
         pin: true,
         scrub: 0.8,
         anticipatePin: 1
@@ -144,7 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
       processBtn.disabled = false;
       processBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Start Processing';
     }
-    bg.classList.add('open'); lenis.stop();
+    bg.classList.add('open'); if (lenis) lenis.stop();
   };
 
   // ── Dynamic redirect to AskVisa portal ──
@@ -156,13 +175,13 @@ document.addEventListener('DOMContentLoaded', () => {
     processBtn.innerHTML = '<span class="btn-spinner"></span> Redirecting to AskVisa...';
     // Build redirect URL dynamically from active country
     const encodedCountry = encodeURIComponent(currentCountryName);
-    const redirectUrl = `https://askvisa.in/?country=${encodedCountry}&source=b2b`;
+    const redirectUrl = `../index.php?country=${encodedCountry}&source=b2b&auto_open=chat`;
     // Brief delay for visual feedback before redirect
-    setTimeout(() => { window.location.href = redirectUrl; }, 1000);
+    setTimeout(() => { window.open(redirectUrl, '_blank'); processBtn.classList.remove('is-loading'); processBtn.disabled = false; processBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Start Processing'; }, 1000);
   };
 
   window.closeModal = () => {
-    bg.classList.remove('open'); lenis.start();
+    bg.classList.remove('open'); if (lenis) lenis.start();
     // Reset button if modal is closed during loading
     if (processBtn) {
       processBtn.classList.remove('is-loading');
@@ -175,6 +194,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Smooth anchor links ──
   document.querySelectorAll('a[href^="#"]').forEach(a => {
-    a.addEventListener('click', e => { e.preventDefault(); const t = document.querySelector(a.getAttribute('href')); if (t) lenis.scrollTo(t); });
+    a.addEventListener('click', e => { e.preventDefault(); const t = document.querySelector(a.getAttribute('href')); if (t) { if (lenis) lenis.scrollTo(t); else t.scrollIntoView({ behavior: 'smooth' }); } });
   });
 });
